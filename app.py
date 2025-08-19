@@ -127,7 +127,7 @@ was quantified on the basis of gross rent being at least 50% of an individual's 
 
    <blockquote> <q> ...[the monthly rent agreed to or contracted for, regardless of any furnishings, utilities, fees, meals, or services that may be included] plus the estimated average monthly cost of utilities and fuels, if these are paid by the renter.</q> (Chapter 6) </blockquote>
 
-2. Data for rent burden were taken from the United States Census Bureau <u style='color:#800000;'><a href="https://www.census.gov/programs-surveys/acs.html">American Community Survey</a></u> (ACS codes B25070, and B25072).
+2. Data for rent burden were taken from the United States Census Bureau <u style='color:#800000;'><a href="https://www.census.gov/programs-surveys/acs.html" style='color:#800000;'>American Community Survey</a></u> (ACS codes B25070, and B25072).
 3. Redistricting over the years affects the availability of some census tracts in certain cities. Unavailability of data for certain census tracts during select years may affect whether or not census tracts are displayed on the map. For these reasons, some census tracts and their data may only be available for a partial range of years.
 
 ### <b style='color:#800000;'>Disclaimer</b>
