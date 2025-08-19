@@ -1,0 +1,634 @@
+# ------------ LIBRARIES ------------ #
+import dash
+from dash import dcc, html, clientside_callback, ClientsideFunction
+from dash.dependencies import Output, Input, State
+from dash_extensions import Purify
+import dash_bootstrap_components as dbc
+import feffery_markdown_components as fmc
+
+
+import pandas as pd
+import numpy as np
+import geopandas as gpd
+import plotly.express as px
+import plotly.graph_objects as go
+import json
+from copy import deepcopy
+import os
+
+
+
+# ------------ DATA COLLECTION ------------ #
+assets_path = "assets/"
+
+data_path = "masterfiles/"
+
+# -- Masterfile -- #
+masterfile = pd.DataFrame()
+years = range(2010, 2024)
+
+for year in years:
+    file_path = f'{data_path}rent_burden_masterfile_{year}.csv'
+    df = pd.read_csv(file_path)
+    map_path = f'{assets_path}rent_burden_mastergeometry_{year}.json'
+    gdf = gpd.read_file(map_path)
+    df = pd.merge(df, gdf[['GEO_ID','INTPTLAT','INTPTLON']], on='GEO_ID', how='left')
+
+    # For the trace
+    df['dummy'] = 1
+
+    # Formatting for the hovertemplate
+    df['TotalRentBurden']   = round( ( (df['B25070_007E'] + df['B25070_008E'] + df['B25070_009E'] + df['B25070_010E']) / df['B25070_001E']) * 100, 2)
+    df['RentBurden_15to24'] = round( ( (df['B25072_006E'] + df['B25072_007E']) / df['B25072_002E']) * 100, 2)
+    df['RentBurden_25to34'] = round( ( (df['B25072_013E'] + df['B25072_014E']) / df['B25072_009E']) * 100, 2)
+    df['RentBurden_35to64'] = round( ( (df['B25072_020E'] + df['B25072_021E']) / df['B25072_016E']) * 100, 2)
+    df['RentBurden_65+']    = round( ( (df['B25072_027E'] + df['B25072_028E']) / df['B25072_023E']) * 100, 2)
+
+    df['RentBurden_15to24_str'] = df['RentBurden_15to24'].astype(str) + '%'
+    df.loc[df['RentBurden_15to24_str'] == 'nan%', 'RentBurden_15to24_str'] = 'Not Available'
+    df['RentBurden_25to34_str'] = df['RentBurden_25to34'].astype(str) + '%'
+    df.loc[df['RentBurden_25to34_str'] == 'nan%', 'RentBurden_25to34_str'] = 'Not Available'
+    df['RentBurden_35to64_str'] = df['RentBurden_35to64'].astype(str) + '%'
+    df.loc[df['RentBurden_35to64_str'] == 'nan%', 'RentBurden_35to64_str'] = 'Not Available'
+    df['RentBurden_65+_str'] = df['RentBurden_65+'].astype(str) + '%'
+    df.loc[df['RentBurden_65+_str'] == 'nan%', 'RentBurden_65+_str'] = 'Not Available'
+
+    df['TotalSevereRentBurden']   = round( ( (df['B25070_010E']) / df['B25070_001E']) * 100, 2)
+
+    masterfile = pd.concat([masterfile, df], ignore_index = True)
+
+
+  
+# ------------ UTILITY FUNCTIONS ------------ #
+# Function for creating a dictionary where the places (keys) hold lists of dictionaries for our year dropdown
+def place_year_dictionary():
+    place_year_dict = dict()
+
+    places = masterfile['PLACE'].unique().tolist()
+    masterfile['NAME'].unique
+    for place in places:
+        df = masterfile[masterfile['PLACE'] == place]
+        list_of_years = df['YEAR'].unique().tolist()
+        dummy_dict = [{'label': year, 'value': year} for year in list_of_years]
+        place_year_dict[place] = dummy_dict
+
+    return place_year_dict
+
+
+
+# ------------ CONTAINERS AND STRINGS------------ #
+
+# Container for geospatial choropleth map
+geodata_map = html.Div([
+    dcc.Graph(
+        id = "chloropleth_map",
+        config={'modeBarButtonsToRemove': ['pan2d', 'lasso2d', 'select2d', 'resetview'],
+                'displaylogo': False
+               },
+    )
+])
+
+# Container for rent plot
+geodata_plot = html.Div([
+    dcc.Graph(
+        id = "rent_plot",
+        config={'modeBarButtonsToRemove': ['pan2d', 'lasso2d', 'select2d', 'resetview'],
+                'displaylogo': False
+               },
+    )
+])
+
+
+
+# Footer string
+footer_string = """
+### <b style='color:#800000;'>Information</b>
+
+This website allows you to view the percentage of rent-burdened individuals and/or severely rent-burdened individuals for census tracts across various cities in Los Angeles county. <br>
+
+For the purposes of this website . . . <ul>
+<li><b style='color:#B22222;'>Rent-burdened individuals</b> are individuals for whom <u style='color:#B22222;'><b style='color:#B22222;'>over 30% of their income</b></u> goes to paying rent </li>
+<li> <b style='color:#800000;'>Severely rent-burdened individuals</b> are individuals for whom <u style='color:#800000;'><b style='color:#800000;'>over 50% of their income</b></u> goes to paying rent </li>
+</ul>
+
+Use the dropdowns to choose a city of interest and a year of interest. You can also choose whether you wish to see the percentage of rent-burdened renters
+or the percentage of severely rent-burdened renters by clicking on the options. <br>
+
+Hover over the map to view a detailed breakdown of rent-burdened individuals by age. <br>
+
+Click on a census tract to visualize how the percentage of either rent-burdened or severely rent-burdened individuals has evolved over time in the plot.
+You can also hover over points in the plot to view additional information on the age demographics of rent-burdened individuals.
+
+<hr style="height:2px; border-width:0; color:#212122; background-color:#212122">
+
+### <b style='color:#800000;'>Notes</b>
+1. Rent burden was quantified on the basis of gross rent being at least 30% of an individual's household income in the past 12 months while severe rent burden
+was quantified on the basis of gross rent being at least 50% of an individual's household income in the past 12 months. Gross rents, per the <u style='color:#800000;'><a href="https://www2.census.gov/programs-surveys/acs/methodology/design_and_methodology/2024/acs_design_methodology_report_2024.pdf" style='color:#800000;'>December 2024 American Community Survey and Puerto Rico Community Survey Design and Methodology</a></u>, is defined as <br>
+
+   <blockquote> <q> ...[the monthly rent agreed to or contracted for, regardless of any furnishings, utilities, fees, meals, or services that may be included] plus the estimated average monthly cost of utilities and fuels, if these are paid by the renter.</q> (Chapter 6) </blockquote>
+
+2. Data for rent burden were taken from the United States Census Bureau <u style='color:#800000;'><a href="https://www.census.gov/programs-surveys/acs.html">American Community Survey</a></u> (ACS codes B25070, and B25072).
+3. Redistricting over the years affects the availability of some census tracts in certain cities. Unavailability of data for certain census tracts during select years may affect whether or not census tracts are displayed on the map. For these reasons, some census tracts and their data may only be available for a partial range of years.
+
+### <b style='color:#800000;'>Disclaimer</b>
+
+This tool is developed for illustrative purposes. This tool is constructed with the assistance of the United States Census Bureau’s American Community Survey data.
+Survey data is based on individuals’ voluntary participation in questionnaires. The creator is not liable for any missing, inaccurate, or incorrect data. This tool
+is not affiliated with, nor endorsed by, the government of the United States.
+
+### <b style='color:#800000;'>Appreciation</b>
+Thank you to <u style='color:#800000;'><a href="https://www.wearelbre.org/" style='color:#800000;'>Long Beach Residents Empowered (LiBRE)</a></u> for providing the opportunity to work on this project.
+
+### <b style='color:#800000;'>Author Information</b>
+Raminder Singh Dubb <br>
+<u style='color:#800000;'><a href="https://github.com/ramindersinghdubb/Rent-Burden-in-LA-County" style='color:#800000;'>GitHub</a></u>
+
+© 2025 Raminder Singh Dubb
+"""
+
+# ------------ Initialization ------------ #
+place_year_dict = place_year_dictionary()
+
+# ------------ Colors ------------ #
+Cream_color = '#FAE8E0'
+SnowWhite_color = '#F5FEFD'
+AlabasterWhite_color = '#FEF9F3'
+LightBrown_color = '#F7F2EE'
+Rose_color = '#FF7F7F'
+MaroonRed_color = '#800000'
+SinopiaRed_color = '#C0451C'
+Teal_color = '#2A9D8F'
+ObsidianBlack_color = '#020403'
+CherryRed_color = '#E3242B'
+
+
+
+
+# ------------ APP ------------ #
+app = dash.Dash(__name__,
+                external_stylesheets=[dbc.themes.SIMPLEX,
+                                      "assets/style.css"
+                                     ]
+               )
+server=app.server
+
+
+
+app.layout = dbc.Container([
+    # ------------ Title ------------ #
+    html.Div([
+        html.B("Rent Burden in Los Angeles County")
+    ], style = {'display': 'block',
+                'color': MaroonRed_color,
+                'margin': '0.2em 0',
+                'padding': '0px 0px 0px 0px', # Numbers represent spacing for the top, right, bottom, and left (in that order)
+                'font-family': 'Trebuchet MS, sans-serif',
+                'font-size': '220.0%'
+               }
+            ),
+    # ------------ Subtitle ------------ #
+    html.Div([
+        html.P("Rent Burden and Severe Rent Burden for Census Tracts across Cities and Census-Designated Places in Los Angeles County, 2010 to 2023")
+    ], style = {'display': 'block',
+                'color': ObsidianBlack_color,
+                'margin': '-0.5em 0',
+                'padding': '0px 0px 0px 0px',
+                'font-family': 'Trebuchet MS, sans-serif',
+                'font-size': '105.0%'
+               }
+            ),
+    # ------------ Horizontal line rule ------------ #
+    html.Div([
+        html.Hr()
+    ], style = {'display': 'block',
+                'height': '1px',
+                'border': 0,
+                'margin': '-0.9em 0',
+                'padding': 0
+               }
+            ),
+    # ------------ Labels for dropdowns (discarded) ------------ #
+    
+    # ------------ Dropdowns ------------ #
+    html.Div([
+        html.Div([
+            dcc.Dropdown(id='place-dropdown',
+                         placeholder='Select a place',
+                         options=[{'label': p, 'value': p} for p in list(place_year_dict.keys())],
+                         value='Long Beach',
+                         clearable=False
+                        )
+        ], style = {'display': 'inline-block',
+                    'margin': '0 0',
+                    'padding': '30px 15px 0px 0px',
+                    'width': '22.5%'
+                   }
+                ),
+        html.Div([
+            dcc.Dropdown(id='year-dropdown',
+                         placeholder='Select a year',
+                         clearable=False
+                        )
+        ], style = {'display': 'inline-block',
+                    'margin': '0 0',
+                    'padding': '30px 15px 0px 0px',
+                    'width': '12.5%',
+                   }
+                ),
+        html.Div([
+            dcc.Dropdown(id='census-tract-dropdown',
+                         placeholder = 'Click on a census tract in the map',
+                         clearable=True
+                        )
+        ], style = {'display': 'inline-block',
+                    'padding': '30px 30px 0px 0px',
+                    'margin': '0 0',
+                    'width': '30.0%'
+                   }
+                ),
+    # ------------ Option Buttons ------------ #
+        html.Div([
+            dbc.RadioItems(id='radio-options',
+                           options = [{'label': 'Rent Burden', 'value': 'Rent Burden'},
+                                      {'label': 'Severe Rent Burden', 'value': 'Severe Rent Burden'}
+                                     ],
+                           value = 'Rent Burden',
+                           inline = True,
+                           labelCheckedClassName = "text-primary",
+                           inputCheckedClassName = "border border-primary bg-primary"
+                        )
+        ], style = {'display': 'inline-block',
+                    'padding': '35px 30px 0px 10px',
+                    'margin': '0 0',
+                    'width': '30.0%',
+                    #'textAlign': 'center'
+                   }
+                )
+    ], style={"padding": "0px 0px 10px 15px"}, className = 'row'
+            ),
+    # ------------ Spatial map with plot ------------ #
+    html.Div([
+            dbc.Row([
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardHeader(children = [html.B(id="maptitle1"), " in ", html.B(id="maptitle2"), " by Census Tract, ", html.B(id="maptitle3")],
+                                   style = {'background-color': MaroonRed_color,
+                                            'color': '#FFFFFF'}
+                                  ),
+                    dbc.CardBody([geodata_map],
+                                 style = {'background-color': AlabasterWhite_color}
+                                )
+                ])
+            ]),
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardHeader(children = html.B(id = "plot-title"),
+                                   style = {'background-color': Teal_color,
+                                            'color': '#FFFFFF'}
+                                  ),
+                    dbc.CardBody([geodata_plot],
+                                 style = {'background-color': AlabasterWhite_color}
+                                )
+                ])
+            ])
+        ], align='center', justify='center'
+               )
+    ], style = {
+                'padding': '10px 0px 20px 0px',
+               }
+            ),
+    # ------------ Alerts ------------ #
+    html.Div([
+        dbc.Row([
+           dbc.Col([
+               dbc.Alert(id='display-selected-values', color = 'primary')
+           ])   
+        ]
+                )
+    ], style = {
+                'padding': '20px 0px 0px 0px',
+               }
+            ),
+    # ------------ Footer ------------ #
+    html.Div([
+        fmc.FefferyMarkdown(markdownStr    = footer_string,
+                            renderHtml     = True,
+                            style          = {'background': LightBrown_color,
+                                              'margin-top': '1em'
+                                             }
+                           )
+    ]
+            ),
+    # ------------ Data ------------ #
+    dcc.Store(id='masterfile_data',
+              data=masterfile.to_dict("records")
+             ),
+    dcc.Store(id='place_year_dict',
+              data=place_year_dict
+             )
+], style = {'background-color': LightBrown_color, "padding": "0px 0px 20px 0px",})
+
+
+
+# ------------ CALLBACKS ------------ #
+#
+# Summary (inputs -> outputs)
+#
+#
+# Dropdowns:
+#  place value -> year options
+#  year options -> default year value
+#  place options, year options, map ClickData -> census tract options
+#  click data -> census tract value
+#
+# Titles:
+#  place value, year value, radio options -> map title
+#  place value, census tract value -> plot title
+#
+# Graphs:
+#  place value, year value, census tract value, radio options -> map
+#  place value, census tract value, radio options -> plot
+#
+# ----------------------------------- #
+
+
+# ------------ Dropdowns ------------ #
+
+# Year tract options
+app.clientside_callback(
+    """
+    function(selected_place, place_year_dict) {
+        return place_year_dict[selected_place]
+    }
+    """,
+    Output('year-dropdown', 'options'),
+    [Input('place-dropdown', 'value'),
+     Input('place_year_dict', 'data')
+    ]
+)
+
+
+# Year tract value
+app.clientside_callback(
+    """
+    function(options) {
+        var opt = options.find(x => x['label'] === 2023);
+        return opt['label']
+    }
+    """,
+    Output('year-dropdown', 'value'),
+    Input('year-dropdown', 'options')
+)
+
+
+# Census tract options
+app.clientside_callback(
+    """
+    function(selected_place, selected_year, masterfile_data) {
+        var selected_place = `${selected_place}`;
+        var options = masterfile_data.filter(x => x['YEAR'] === selected_year && x['PLACE'] === selected_place);
+        var tract_options = options.map(item => { return item.NAME });
+        return tract_options
+    }
+    """,
+    Output('census-tract-dropdown', 'options'),
+    [Input('place-dropdown', 'value'),
+     Input('year-dropdown', 'value'),
+     Input('masterfile_data', 'data')
+    ]
+)
+
+
+
+
+# Census tract value based on click data
+app.clientside_callback(
+    """
+    function(clickData) {
+        return clickData['points']['0']['customdata']
+    }
+    """,
+    Output('census-tract-dropdown', 'value'),
+    Input('chloropleth_map', 'clickData')
+)
+
+
+
+
+# ------------ Titles ------------ #
+
+
+# Map title
+app.clientside_callback(
+    """
+    function(selected_place, selected_year, radio_option) {
+        var selected_place = `${selected_place}`;
+        var selected_year = `${selected_year}`;
+        var radio_option = `${radio_option}`;
+
+        let rb_string = 'Percentage of Rent Burdened Individuals';
+        let srb_string = 'Percentage of Severely Rent Burdened Individuals';
+
+        if {radio_option == 'Rent Burden'} {
+            return [rb_string, selected_place, selected_year];
+        } else {
+            return [srb_string, selected_place, selected_year];
+        }
+    }
+    """,
+    [Output('maptitle1', 'children'),
+     Output('maptitle2', 'children'),
+     Output('maptitle3', 'children')
+    ],
+    [Input('place-dropdown', 'value'),
+     Input('year-dropdown', 'value'),
+     Input('radio-options', 'value')
+    ]
+)
+
+# Plot title
+app.clientside_callback(
+    """
+    function(selected_place, selected_tract) {
+        if (selected_tract == undefined){
+            return "Please click on a tract.";
+        } else {
+            return `${selected_place}, ${selected_tract}`;
+        }
+    }
+    """,
+    Output('plot-title', 'children'),
+    [Input('place-dropdown', 'value'),
+     Input('census-tract-dropdown', 'value')
+    ]
+)
+
+
+# ------------ Graphs ------------ #
+
+# Choropleth map
+app.clientside_callback(
+    """
+    function(selected_place, selected_year, selected_tract, radio_option, masterfile_data){
+        var radio_option = `${radio_option}`;
+        var selected_place = `${selected_place}`;
+        var selected_year = Number(selected_year);
+        var my_array = masterfile_data.filter(item => item['PLACE'] === selected_place && item['YEAR'] === selected_year);
+        
+        var place_string = selected_place.replaceAll(' ','');
+        var url_path = `https://raw.githubusercontent.com/ramindersinghdubb/Rent-Burden-in-LA-County/refs/heads/main/assets/${selected_year}/rent_burden_mastergeometry_${selected_year}_${place_string}.json`;
+        
+        var my_array = masterfile_data.filter(item => item['PLACE'] === selected_place && item['YEAR'] === selected_year);
+        
+        var locations_array = my_array.map(({GEO_ID}) => GEO_ID);
+        var customdata_array = my_array.map(({NAME}) => NAME);
+        
+        var long_array = my_array.map(({INTPTLON})=>INTPTLON);
+        var long_center = long_array.reduce((a, b) => a + b) / long_array.length;
+        const lon_center = parseFloat(long_center.toFixed(5));
+        
+        var lat_array = my_array.map(({INTPTLAT})=>INTPTLAT);
+        var lati_center = lat_array.reduce((a, b) => a + b) / lat_array.length;
+        const lat_center = parseFloat(lati_center.toFixed(5));
+        
+        if {radio_option == 'Rent Burden'} {
+            var rent_burden_z_array = my_array.map(({TotalRentBurden})=>TotalRentBurden);
+            var rent_burden_strings = my_array.map(function(item) {
+                return "<b style='font-size:16px;'>" + item['NAME'] + "</b><br>" + item['PLACE'] + ", Los Angeles County<br><br>"
+                + "Of the estimated " + item['B25070_001E'] + " renters, approx. <b style='font-size:16px; color:#800000;'>" + item['TotalRentBurden'] + "</b><br>"
+                + " were considered <b style='font-size:16px; color:#800000;'>rent-burdened</b> during <b style='font-size:14px'>" + item['YEAR'] + "</b>. <br><br>"
+                + "Of renters 15 to 24 year old, approx. <b style='color:#B22222;'>" + item['RentBurden_15to24_str'] + "</b><br> were rent-burdened. <br><br>"
+                + "Of renters 25 to 34 year old, approx. <b style='color:#B22222;'>" + item['RentBurden_25to34_str'] + "</b><br> were rent-burdened. <br><br>"
+                + "Of renters 35 to 64 year old, approx. <b style='color:#B22222;'>" + item['RentBurden_35to64_str'] + "</b><br> were rent-burdened. <br><br>"
+                + "Of renters 65 and older, approx. <b style='color:#B22222;'>" + item['RentBurden_65+_str'] + "</b><br> were rent-burdened.<extra></extra>";
+                });
+        
+            var rent_burden_main_data = [{
+                'type': 'choroplethmap',
+                'customdata': customdata_array,
+                'geojson': url_path,
+                'locations': locations_array,
+                'featureidkey': 'properties.GEO_ID',
+                'colorscale': 'Hot',
+                'reversescale': true,
+                'z': rent_burden_z_array,
+                'zmin': 0, 'zmax': 100,
+                'marker': {'line': {'color': '#020403', 'width': 1.75}, 'opacity': 0.4},
+                'text': rent_burden_strings,
+                'colorbar': {'outlinewidth': 2,
+                             'ticklabelposition': 'outside bottom',
+                             'ticksuffix': '%',
+                             'title': {'font': {'color': '#020403', 'weight': 500}, 'text': 'Percentage of<br>Rent-Burdened<br>Individuals (%)'}},
+                'hoverlabel': {'bgcolor': '#FAFAFA', 'bordercolor': '#BEBEBE', 'font': {'color': '#020403'}},
+                'hovertemplate': '%{text}'
+            }];
+        
+            var layout = {
+                'autosize': true,
+                'hoverlabel': {'align': 'left'},
+                'map': {'center': {'lat': lat_center, 'lon': lon_center}, 'style': 'streets', 'zoom': 10},
+                'margin': {'b': 0, 'l': 0, 'r': 0, 't': 0},
+                'paper_bgcolor': '#FEF9F3',
+                'plot_bgcolor': '#FEF9F3',
+            };
+        
+            if (selected_tract != undefined){
+                var aux_rb_array = my_array.filter(item => item['NAME'] === selected_tract);
+                var aux_rb_locations_array = aux_rb_array.map(({GEO_ID}) => GEO_ID);
+                var aux_rb_z_array = aux_rb_array.map(({dummy})=>dummy);
+            
+                var rent_burden_data_aux = {
+                    'type': 'choroplethmap',
+                    'geojson': url_path,
+                    'locations': aux_rb_locations_array,
+                    'featureidkey': 'properties.GEO_ID',
+                    'colorscale': `[[0, 'rgba(0,0,0,0)'], [1, 'rgba(0,0,0,0)']]`,
+                    'showscale': false,
+                    'z': aux_rb_z_array,
+                    'zmin': 0, 'zmax': 1,
+                    'marker': {'line': {'color': '#04D9FF', 'width': 4}},
+                    'selected': {'marker': {'opacity': 0.4}},
+                    'hoverinfo': 'skip',
+                }
+                rent_burden_main_data.push(rent_burden_data_aux);
+            }
+            return {'data': rent_burden_main_data, 'layout': layout};
+        } else {
+            var severe_rent_burden_z_array = my_array.map(({TotalSevereRentBurden})=>TotalSevereRentBurden);
+            var severe_rent_burden_strings = my_array.map(function(item) {
+                return "<b style='font-size:16px;'>" + item['NAME'] + "</b><br>" + item['PLACE'] + ", Los Angeles County<br><br>"
+                + "Of the estimated " + item['B25070_001E'] + " renters, approx. <b style='font-size:16px; color:#610000;'>" + item['TotalSevereRentBurden'] + "</b><br>"
+                + " were considered <b style='font-size:16px; color:#610000;'>severely rent-burdened</b> during <b style='font-size:14px'>" + item['YEAR'] + "</b>.<extra></extra>";
+                });
+                
+            var severe_rent_burden_main_data = [{
+                'type': 'choroplethmap',
+                'customdata': customdata_array,
+                'geojson': url_path,
+                'locations': locations_array,
+                'featureidkey': 'properties.GEO_ID',
+                'colorscale': 'Agsunset',
+                'reversescale': true,
+                'z': severe_rent_burden_z_array,
+                'zmin': 0, 'zmax': 100,
+                'marker': {'line': {'color': '#020403', 'width': 1.75}, 'opacity': 0.4},
+                'text': severe_rent_burden_strings,
+                'colorbar': {'outlinewidth': 2,
+                             'ticklabelposition': 'outside bottom',
+                             'ticksuffix': '%',
+                             'title': {'font': {'color': '#020403', 'weight': 500}, 'text': 'Percentage of<br>Severely<br>Rent-Burdened<br>Individuals (%)'}},
+                'hoverlabel': {'bgcolor': '#FAFAFA', 'bordercolor': '#BEBEBE', 'font': {'color': '#020403'}},
+                'hovertemplate': '%{text}'
+            }];
+        
+            var layout1 = {
+                'autosize': true,
+                'hoverlabel': {'align': 'left'},
+                'map': {'center': {'lat': lat_center, 'lon': lon_center}, 'style': 'streets', 'zoom': 10},
+                'margin': {'b': 0, 'l': 0, 'r': 0, 't': 0},
+                'paper_bgcolor': '#FEF9F3',
+                'plot_bgcolor': '#FEF9F3',
+            };
+            if (selected_tract != undefined){
+                var aux_srb_array = my_array.filter(item => item['NAME'] === selected_tract);
+                var aux_srb_locations_array = aux_srb_array.map(({GEO_ID}) => GEO_ID);
+                var aux_srb_z_array = aux_srb_array.map(({dummy})=>dummy);
+            
+                var severe_rent_burden_data_aux = {
+                    'type': 'choroplethmap',
+                    'geojson': url_path,
+                    'locations': aux_srb_locations_array,
+                    'featureidkey': 'properties.GEO_ID',
+                    'colorscale': `[[0, 'rgba(0,0,0,0)'], [1, 'rgba(0,0,0,0)']]`,
+                    'showscale': false,
+                    'z': aux_srb_z_array,
+                    'zmin': 0, 'zmax': 1,
+                    'marker': {'line': {'color': '#04D9FF', 'width': 4}},
+                    'selected': {'marker': {'opacity': 0.4}},
+                    'hoverinfo': 'skip',
+                }
+                severe_rent_burden_main_data.push(severe_rent_burden_data_aux);
+            }
+            return {'data': severe_rent_burden_main_data, 'layout': layout1};
+        }
+    """,
+    Output('chloropleth_map', 'figure'),
+    [Input('place-dropdown', 'value'),
+     Input('year-dropdown', 'value'),
+     Input('census-tract-dropdown', 'value'),
+     Input('radio-options', 'value'),
+     Input('masterfile_data', 'data')
+    ]
+)
+
+
+# Plot
+
+
+
+
+
+
+# ------------ EXECUTE THE APP ------------ #
+if __name__ == '__main__':
+    app.run(debug=False)
