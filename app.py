@@ -331,7 +331,19 @@ app.layout = dbc.Container([
     html.Div([
         dbc.Row([
            dbc.Col([
-               dbc.Alert(id='display-selected-values', color = 'primary')
+               dbc.Alert(children=['Of the estimated ', html.B(id='dv1'), ' renters residing in ', html.B(id='dv2'), ' during ',
+                                    html.B(id='dv3'), ', approximately ', html.B(id='dv4'), ' of all renters were considered ',
+                                    html.B('rent-burdened'), '.', html.Br(), html.Br(), 'Of the estimated ', html.B(id='dv5'),
+                                    ' renters who were ', html.B('15 to 24 years old'), ', approximately ', html.B(id='dv6'),
+                                    ' were considered ', html.B('rent-burdened'), '.', html.Br(), html.Br(), 'Of the estimated ',
+                                    html.B(id='dv7'), ' renters who were ', html.B('25 to 34 years old'), ', approximately ', html.B(id='dv8'),
+                                    ' were considered ', html.B('rent-burdened'), '.', html.Br(), html.Br(), 'Of the estimated ',
+                                    html.B(id='dv9'), ' renters who were ', html.B('35 to 64 years old'), ', approximately ', html.B(id='dv10'),
+                                    ' were considered ', html.B('rent-burdened'), '.', html.Br(), html.Br(), 'Of the estimated ',
+                                    html.B(id='dv11'), ' renters who were ', html.B('65 years and older'), ', approximately ', html.B(id='dv12'),
+                                    ' were considered ', html.B('rent-burdened'), '.',
+                                   ],
+                          color = 'primary')
            ])   
         ]
                 )
@@ -383,7 +395,7 @@ app.layout = dbc.Container([
 #  place value, census tract value, radio options -> plot
 #
 # Alert:
-#  place value, year value, radio options -> tract display
+#  place value, year value -> alert
 #
 # ----------------------------------- #
 
@@ -750,6 +762,43 @@ app.clientside_callback(
     ]
 )
 
+
+
+# ------------ Alert ------------ #
+app.clientside_callback(
+    """
+    function(selected_place, selected_year, alert_masterfile) {
+        var selected_place = `${selected_place}`;
+        var selected_year = Number(selected_year);
+        var my_array = alert_masterfile.filter(item => item['PLACE'] === selected_place && item['YEAR'] === selected_year);
+
+        var dv1 = `${my_array['0']['TotalPop']}`;
+        var dv2 = selected_place;
+        var dv3 = selected_year;
+        var dv4 = `${my_array['0']['OverallRB']}` + '%';
+        var dv5 = `${my_array['0']['15to24Pop']}`;
+        var dv6 = `${my_array['0']['15to24RB']}` + '%';
+        var dv7 = `${my_array['0']['25to34Pop']}`;
+        var dv8 = `${my_array['0']['25to34RB']}` + '%';
+        var dv9 = `${my_array['0']['35to64Pop']}`;
+        var dv10 = `${my_array['0']['35to64RB']}` + '%';
+        var dv11 = `${my_array['0']['65olderPop']}`;
+        var dv12 = `${my_array['0']['65olderRB']}` + '%';
+        
+
+        return [dv1, dv2, dv3, dv4, dv5, dv6, dv7, dv8, dv9, dv10, dv11, dv12]
+    }
+    """,
+    [Output('dv1', 'children'), Output('dv2', 'children'), Output('dv3', 'children'),
+     Output('dv4', 'children'), Output('dv5', 'children'), Output('dv6', 'children'),
+     Output('dv7', 'children'), Output('dv8', 'children'), Output('dv9', 'children'),
+     Output('dv10', 'children'), Output('dv11', 'children'), Output('dv12', 'children')
+    ],
+    [Input('place-dropdown', 'value'),
+     Input('year-dropdown', 'value'),
+     Input('alert_masterfile_data', 'data')
+    ]
+)
 
 
 
