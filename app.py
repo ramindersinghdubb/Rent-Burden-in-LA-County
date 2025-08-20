@@ -53,7 +53,10 @@ for year in years:
     df['RentBurden_65+_str'] = df['RentBurden_65+'].astype(str) + '%'
     df.loc[df['RentBurden_65+_str'] == 'nan%', 'RentBurden_65+_str'] = 'Not Available'
 
-    df['TotalSevereRentBurden']   = round( ( (df['B25070_010E']) / df['B25070_001E']) * 100, 2)
+    df['TotalSevereRentBurden']  = round( ( (df['B25070_010E']) / df['B25070_001E']) * 100, 2)
+    df = df[['YEAR', 'PLACE', 'GEO_ID', 'NAME', 'B25070_001E', 'INTPTLAT', 'INTPTLON', 'dummy',
+             'TotalRentBurden', 'RentBurden_15to24_str', 'RentBurden_25to34_str', 'RentBurden_35to64_str',
+             'RentBurden_65+_str', 'TotalSevereRentBurden']]
 
     masterfile = pd.concat([masterfile, df], ignore_index = True)
 
