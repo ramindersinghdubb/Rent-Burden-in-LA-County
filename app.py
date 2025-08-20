@@ -24,6 +24,7 @@ assets_path = "assets/"
 data_path = "masterfiles/"
 
 # -- Masterfile -- #
+# Masterfile
 masterfile = pd.DataFrame()
 years = range(2010, 2024)
 
@@ -32,7 +33,7 @@ for year in years:
     df = pd.read_csv(file_path)
     map_path = f'{assets_path}rent_burden_mastergeometry_{year}.json'
     gdf = gpd.read_file(map_path)
-    df = pd.merge(df, gdf[['GEO_ID','INTPTLAT','INTPTLON']], on='GEO_ID', how='left')
+    df = pd.merge(df, gdf[['PLACE', 'NAME', 'GEO_ID','INTPTLAT','INTPTLON']], on=['PLACE', 'NAME', 'GEO_ID'], how='left')
 
     # For the trace
     df['dummy'] = 1
