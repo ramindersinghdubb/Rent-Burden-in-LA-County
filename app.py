@@ -271,7 +271,7 @@ app.layout = dbc.Container([
             dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader(children = [html.B(id="maptitle1"), " in ", html.B(id="maptitle2"), " by Census Tract, ", html.B(id="maptitle3")],
+                    dbc.CardHeader(children = [html.B(id="map-title1"), " in ", html.B(id="map-title2"), " by Census Tract, ", html.B(id="map-title3")],
                                    style = {'background-color': MaroonRed_color,
                                             'color': '#FFFFFF'}
                                   ),
@@ -349,6 +349,9 @@ app.layout = dbc.Container([
 #  place value, year value, census tract value, radio options -> map
 #  place value, census tract value, radio options -> plot
 #
+# Alert:
+#  place value, year value, radio options -> tract display
+#
 # ----------------------------------- #
 
 
@@ -421,28 +424,27 @@ app.clientside_callback(
 # Map title
 app.clientside_callback(
     """
-    function(selected_place, selected_year, radio_option) {
+    function(selected_metric, selected_place, selected_year) {
+        var selected_metric = `${selected_metric}`;
         var selected_place = `${selected_place}`;
         var selected_year = `${selected_year}`;
-        var radio_option = `${radio_option}`;
 
-        let rb_string = 'Percentage of Rent Burdened Individuals';
-        let srb_string = 'Percentage of Severely Rent Burdened Individuals';
-
-        if {radio_option == 'Rent Burden'} {
-            return [rb_string, selected_place, selected_year];
-        } else {
-            return [srb_string, selected_place, selected_year];
+        if (selected_metric == 'Rent Burden') {
+            return ['Percentage of Rent Burdened Individuals', selected_place, selected_year];
+        }
+        
+        else {
+            return ['Percentage of Severely Rent Burdened Individuals', selected_place, selected_year];
         }
     }
     """,
-    [Output('maptitle1', 'children'),
-     Output('maptitle2', 'children'),
-     Output('maptitle3', 'children')
+    [Output('map-title1', 'children'),
+     Output('map-title2', 'children'),
+     Output('map-title3', 'children')
     ],
-    [Input('place-dropdown', 'value'),
+    [Input('radio-options', 'value'),
+     Input('place-dropdown', 'value'),
      Input('year-dropdown', 'value'),
-     Input('radio-options', 'value')
     ]
 )
 
@@ -469,16 +471,14 @@ app.clientside_callback(
 # Choropleth map
 app.clientside_callback(
     """
-    function(selected_place, selected_year, selected_tract, radio_option, masterfile_data){
-        var radio_option = `${radio_option}`;
+    function(selected_metric, selected_place, selected_year, selected_tract, masterfile_data){
+        var selected_metric = `${selected_metric}`;
         var selected_place = `${selected_place}`;
         var selected_year = Number(selected_year);
         var my_array = masterfile_data.filter(item => item['PLACE'] === selected_place && item['YEAR'] === selected_year);
         
         var place_string = selected_place.replaceAll(' ','');
         var url_path = `https://raw.githubusercontent.com/ramindersinghdubb/Rent-Burden-in-LA-County/refs/heads/main/assets/${selected_year}/rent_burden_mastergeometry_${selected_year}_${place_string}.json`;
-        
-        var my_array = masterfile_data.filter(item => item['PLACE'] === selected_place && item['YEAR'] === selected_year);
         
         var locations_array = my_array.map(({GEO_ID}) => GEO_ID);
         var customdata_array = my_array.map(({NAME}) => NAME);
@@ -490,133 +490,126 @@ app.clientside_callback(
         var lat_array = my_array.map(({INTPTLAT})=>INTPTLAT);
         var lati_center = lat_array.reduce((a, b) => a + b) / lat_array.length;
         const lat_center = parseFloat(lati_center.toFixed(5));
+
+        var rent_burden_z_array = my_array.map(({TotalRentBurden})=>TotalRentBurden);
+        var rent_burden_strings = my_array.map(function(item) {
+            return "<b style='font-size:16px;'>" + item['NAME'] + "</b><br>" + item['PLACE'] + ", Los Angeles County<br><br>"
+            + "Of the estimated " + item['B25070_001E'] + " renters, approx. <b style='font-size:16px; color:#800000;'>" + item['TotalRentBurden'] + "%</b><br>"
+            + "were considered <b style='font-size:16px; color:#800000;'>rent-burdened</b> during <b style='font-size:14px'>" + item['YEAR'] + "</b>. <br><br>"
+            + "Of renters <b style='color:#B22222;'>15 to 24 year old</b>, approx.<br><b style='color:#B22222; font-size:14px;'>" + item['RentBurden_15to24_str'] + "</b> were rent-burdened.<br><br>"
+            + "Of renters <b style='color:#B22222;'>25 to 34 year old</b>, approx.<br><b style='color:#B22222; font-size:14px;'>" + item['RentBurden_25to34_str'] + "</b> were rent-burdened.<br><br>"
+            + "Of renters <b style='color:#B22222;'>35 to 64 year old</b>, approx.<br><b style='color:#B22222; font-size:14px;'>" + item['RentBurden_35to64_str'] + "</b> were rent-burdened.<br><br>"
+            + "Of renters <b style='color:#B22222;'>65 and older</b>, approx.<br><b style='color:#B22222; font-size:14px;'>" + item['RentBurden_65+_str'] + "</b> were rent-burdened.<extra></extra>";
+            });
         
-        if {radio_option == 'Rent Burden'} {
-            var rent_burden_z_array = my_array.map(({TotalRentBurden})=>TotalRentBurden);
-            var rent_burden_strings = my_array.map(function(item) {
-                return "<b style='font-size:16px;'>" + item['NAME'] + "</b><br>" + item['PLACE'] + ", Los Angeles County<br><br>"
-                + "Of the estimated " + item['B25070_001E'] + " renters, approx. <b style='font-size:16px; color:#800000;'>" + item['TotalRentBurden'] + "</b><br>"
-                + " were considered <b style='font-size:16px; color:#800000;'>rent-burdened</b> during <b style='font-size:14px'>" + item['YEAR'] + "</b>. <br><br>"
-                + "Of renters 15 to 24 year old, approx. <b style='color:#B22222;'>" + item['RentBurden_15to24_str'] + "</b><br> were rent-burdened. <br><br>"
-                + "Of renters 25 to 34 year old, approx. <b style='color:#B22222;'>" + item['RentBurden_25to34_str'] + "</b><br> were rent-burdened. <br><br>"
-                + "Of renters 35 to 64 year old, approx. <b style='color:#B22222;'>" + item['RentBurden_35to64_str'] + "</b><br> were rent-burdened. <br><br>"
-                + "Of renters 65 and older, approx. <b style='color:#B22222;'>" + item['RentBurden_65+_str'] + "</b><br> were rent-burdened.<extra></extra>";
-                });
+        var rent_burden_main_data = [{
+            'type': 'choroplethmap',
+            'customdata': customdata_array,
+            'geojson': url_path,
+            'locations': locations_array,
+            'featureidkey': 'properties.GEO_ID',
+            'colorscale': 'Hot',
+            'reversescale': true,
+            'z': rent_burden_z_array,
+            'zmin': 0, 'zmax': 100,
+            'marker': {'line': {'color': '#020403', 'width': 1.75}, 'opacity': 0.4},
+            'text': rent_burden_strings,
+            'colorbar': {'outlinewidth': 2,
+                         'ticklabelposition': 'outside bottom',
+                         'ticksuffix': '%',
+                         'title': {'font': {'color': '#020403', 'weight': 500}, 'text': 'Percentage of<br>Rent-Burdened<br>Individuals (%)'}},
+            'hoverlabel': {'bgcolor': '#FAFAFA', 'bordercolor': '#BEBEBE', 'font': {'color': '#020403'}},
+            'hovertemplate': '%{text}'
+        }];
+
+        var severe_rent_burden_z_array = my_array.map(({TotalSevereRentBurden})=>TotalSevereRentBurden);
+        var severe_rent_burden_strings = my_array.map(function(item) {
+            return "<b style='font-size:16px;'>" + item['NAME'] + "</b><br>" + item['PLACE'] + ", Los Angeles County<br><br>"
+            + "Of the estimated " + item['B25070_001E'] + " renters, approx. <b style='font-size:16px; color:#610000;'>" + item['TotalSevereRentBurden'] + "%</b><br>"
+            + "were considered <b style='font-size:16px; color:#610000;'>severely rent-burdened</b><br>during <b style='font-size:14px'>" + item['YEAR'] + "</b>.<extra></extra>";
+            });
+                
+        var severe_rent_burden_main_data = [{
+            'type': 'choroplethmap',
+            'customdata': customdata_array,
+            'geojson': url_path,
+            'locations': locations_array,
+            'featureidkey': 'properties.GEO_ID',
+            'colorscale': `[[0, 'rgb(0,0,255)'], [1, 'rgb(255,0,0)']]`,
+            'z': severe_rent_burden_z_array,
+            'zmin': 0, 'zmax': 100,
+            'marker': {'line': {'color': '#020403', 'width': 1.75}, 'opacity': 0.4},
+            'text': severe_rent_burden_strings,
+            'colorbar': {'outlinewidth': 2,
+                         'ticklabelposition': 'outside bottom',
+                         'ticksuffix': '%',
+                         'title': {'font': {'color': '#020403', 'weight': 500}, 'text': 'Percentage of<br>Severely<br>Rent-Burdened<br>Individuals (%)'}},
+            'hoverlabel': {'bgcolor': '#FAFAFA', 'bordercolor': '#BEBEBE', 'font': {'color': '#020403'}},
+            'hovertemplate': '%{text}'
+        }];
         
-            var rent_burden_main_data = [{
-                'type': 'choroplethmap',
-                'customdata': customdata_array,
-                'geojson': url_path,
-                'locations': locations_array,
-                'featureidkey': 'properties.GEO_ID',
-                'colorscale': 'Hot',
-                'reversescale': true,
-                'z': rent_burden_z_array,
-                'zmin': 0, 'zmax': 100,
-                'marker': {'line': {'color': '#020403', 'width': 1.75}, 'opacity': 0.4},
-                'text': rent_burden_strings,
-                'colorbar': {'outlinewidth': 2,
-                             'ticklabelposition': 'outside bottom',
-                             'ticksuffix': '%',
-                             'title': {'font': {'color': '#020403', 'weight': 500}, 'text': 'Percentage of<br>Rent-Burdened<br>Individuals (%)'}},
-                'hoverlabel': {'bgcolor': '#FAFAFA', 'bordercolor': '#BEBEBE', 'font': {'color': '#020403'}},
-                'hovertemplate': '%{text}'
-            }];
+        var layout = {
+            'autosize': true,
+            'hoverlabel': {'align': 'left'},
+            'map': {'center': {'lat': lat_center, 'lon': lon_center}, 'style': 'streets', 'zoom': 10},
+            'margin': {'b': 0, 'l': 0, 'r': 0, 't': 0},
+            'paper_bgcolor': '#FEF9F3',
+            'plot_bgcolor': '#FEF9F3',
+        };
         
-            var layout = {
-                'autosize': true,
-                'hoverlabel': {'align': 'left'},
-                'map': {'center': {'lat': lat_center, 'lon': lon_center}, 'style': 'streets', 'zoom': 10},
-                'margin': {'b': 0, 'l': 0, 'r': 0, 't': 0},
-                'paper_bgcolor': '#FEF9F3',
-                'plot_bgcolor': '#FEF9F3',
-            };
-        
+        if (selected_metric == 'Rent Burden') {
             if (selected_tract != undefined){
-                var aux_rb_array = my_array.filter(item => item['NAME'] === selected_tract);
-                var aux_rb_locations_array = aux_rb_array.map(({GEO_ID}) => GEO_ID);
-                var aux_rb_z_array = aux_rb_array.map(({dummy})=>dummy);
-            
-                var rent_burden_data_aux = {
-                    'type': 'choroplethmap',
-                    'geojson': url_path,
-                    'locations': aux_rb_locations_array,
-                    'featureidkey': 'properties.GEO_ID',
-                    'colorscale': `[[0, 'rgba(0,0,0,0)'], [1, 'rgba(0,0,0,0)']]`,
-                    'showscale': false,
-                    'z': aux_rb_z_array,
-                    'zmin': 0, 'zmax': 1,
-                    'marker': {'line': {'color': '#04D9FF', 'width': 4}},
-                    'selected': {'marker': {'opacity': 0.4}},
-                    'hoverinfo': 'skip',
-                }
+                    var aux_rb_array = my_array.filter(item => item['NAME'] === selected_tract);
+                    var aux_rb_locations_array = aux_rb_array.map(({GEO_ID}) => GEO_ID);
+                    var aux_rb_z_array = aux_rb_array.map(({dummy})=>dummy);
+                
+                    var rent_burden_data_aux = {
+                        'type': 'choroplethmap',
+                        'geojson': url_path,
+                        'locations': aux_rb_locations_array,
+                        'featureidkey': 'properties.GEO_ID',
+                        'colorscale': 'Reds',
+                        'showscale': false,
+                        'z': aux_rb_z_array,
+                        'zmin': 0, 'zmax': 1,
+                        'marker': {'line': {'color': '#04D9FF', 'width': 4}},
+                        'selected': {'marker': {'opacity': 0.4}},
+                        'hoverinfo': 'skip',
+                    }
                 rent_burden_main_data.push(rent_burden_data_aux);
             }
             return {'data': rent_burden_main_data, 'layout': layout};
-        } else {
-            var severe_rent_burden_z_array = my_array.map(({TotalSevereRentBurden})=>TotalSevereRentBurden);
-            var severe_rent_burden_strings = my_array.map(function(item) {
-                return "<b style='font-size:16px;'>" + item['NAME'] + "</b><br>" + item['PLACE'] + ", Los Angeles County<br><br>"
-                + "Of the estimated " + item['B25070_001E'] + " renters, approx. <b style='font-size:16px; color:#610000;'>" + item['TotalSevereRentBurden'] + "</b><br>"
-                + " were considered <b style='font-size:16px; color:#610000;'>severely rent-burdened</b> during <b style='font-size:14px'>" + item['YEAR'] + "</b>.<extra></extra>";
-                });
-                
-            var severe_rent_burden_main_data = [{
-                'type': 'choroplethmap',
-                'customdata': customdata_array,
-                'geojson': url_path,
-                'locations': locations_array,
-                'featureidkey': 'properties.GEO_ID',
-                'colorscale': 'Agsunset',
-                'reversescale': true,
-                'z': severe_rent_burden_z_array,
-                'zmin': 0, 'zmax': 100,
-                'marker': {'line': {'color': '#020403', 'width': 1.75}, 'opacity': 0.4},
-                'text': severe_rent_burden_strings,
-                'colorbar': {'outlinewidth': 2,
-                             'ticklabelposition': 'outside bottom',
-                             'ticksuffix': '%',
-                             'title': {'font': {'color': '#020403', 'weight': 500}, 'text': 'Percentage of<br>Severely<br>Rent-Burdened<br>Individuals (%)'}},
-                'hoverlabel': {'bgcolor': '#FAFAFA', 'bordercolor': '#BEBEBE', 'font': {'color': '#020403'}},
-                'hovertemplate': '%{text}'
-            }];
-        
-            var layout1 = {
-                'autosize': true,
-                'hoverlabel': {'align': 'left'},
-                'map': {'center': {'lat': lat_center, 'lon': lon_center}, 'style': 'streets', 'zoom': 10},
-                'margin': {'b': 0, 'l': 0, 'r': 0, 't': 0},
-                'paper_bgcolor': '#FEF9F3',
-                'plot_bgcolor': '#FEF9F3',
-            };
-            if (selected_tract != undefined){
-                var aux_srb_array = my_array.filter(item => item['NAME'] === selected_tract);
-                var aux_srb_locations_array = aux_srb_array.map(({GEO_ID}) => GEO_ID);
-                var aux_srb_z_array = aux_srb_array.map(({dummy})=>dummy);
-            
-                var severe_rent_burden_data_aux = {
-                    'type': 'choroplethmap',
-                    'geojson': url_path,
-                    'locations': aux_srb_locations_array,
-                    'featureidkey': 'properties.GEO_ID',
-                    'colorscale': `[[0, 'rgba(0,0,0,0)'], [1, 'rgba(0,0,0,0)']]`,
-                    'showscale': false,
-                    'z': aux_srb_z_array,
-                    'zmin': 0, 'zmax': 1,
-                    'marker': {'line': {'color': '#04D9FF', 'width': 4}},
-                    'selected': {'marker': {'opacity': 0.4}},
-                    'hoverinfo': 'skip',
-                }
-                severe_rent_burden_main_data.push(severe_rent_burden_data_aux);
-            }
-            return {'data': severe_rent_burden_main_data, 'layout': layout1};
         }
+        else {
+            if (selected_tract != undefined){
+                    var aux_srb_array = my_array.filter(item => item['NAME'] === selected_tract);
+                    var aux_srb_locations_array = aux_srb_array.map(({GEO_ID}) => GEO_ID);
+                    var aux_srb_z_array = aux_srb_array.map(({dummy})=>dummy);
+                
+                    var severe_rent_burden_data_aux = {
+                        'type': 'choroplethmap',
+                        'geojson': url_path,
+                        'locations': aux_srb_locations_array,
+                        'featureidkey': 'properties.GEO_ID',
+                        'colorscale': `[[0, 'rgba(0,0,0,0)'], [1, 'rgba(0,0,0,0)']]`,
+                        'showscale': false,
+                        'z': aux_srb_z_array,
+                        'zmin': 0, 'zmax': 1,
+                        'marker': {'line': {'color': '#04D9FF', 'width': 4}},
+                        'selected': {'marker': {'opacity': 0.4}},
+                        'hoverinfo': 'skip',
+                    }
+                    severe_rent_burden_main_data.push(severe_rent_burden_data_aux);
+                }
+            return {'data': severe_rent_burden_main_data, 'layout': layout};
+        }
+    }
     """,
     Output('chloropleth_map', 'figure'),
-    [Input('place-dropdown', 'value'),
+    [Input('radio-options', 'value'),
+     Input('place-dropdown', 'value'),
      Input('year-dropdown', 'value'),
      Input('census-tract-dropdown', 'value'),
-     Input('radio-options', 'value'),
      Input('masterfile_data', 'data')
     ]
 )
