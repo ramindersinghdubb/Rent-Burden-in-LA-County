@@ -538,7 +538,7 @@ app.clientside_callback(
             'geojson': url_path,
             'locations': locations_array,
             'featureidkey': 'properties.GEO_ID',
-            'colorscale': `[[0, 'rgb(0,0,255)'], [1, 'rgb(255,0,0)']]`,
+            'colorscale': 'Reds',
             'z': severe_rent_burden_z_array,
             'zmin': 0, 'zmax': 100,
             'marker': {'line': {'color': '#020403', 'width': 1.75}, 'opacity': 0.4},
