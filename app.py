@@ -24,7 +24,6 @@ assets_path = "assets/"
 data_path = "masterfiles/"
 
 # -- Masterfile -- #
-# Masterfile
 masterfile = pd.DataFrame()
 years = range(2010, 2024)
 
