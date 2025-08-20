@@ -481,7 +481,7 @@ app.clientside_callback(
         var my_array = masterfile_data.filter(item => item['PLACE'] === selected_place && item['YEAR'] === selected_year);
         
         var place_string = selected_place.replaceAll(' ','');
-        var url_path = `https://raw.githubusercontent.com/ramindersinghdubb/Rent-Burden-in-LA-County/refs/heads/main/assets/${selected_year}/rent_burden_mastergeometry_${selected_year}_${place_string}.json`;
+        var url_path = "https://raw.githubusercontent.com/ramindersinghdubb/Rent-Burden-in-LA-County/refs/heads/main/as" + "sets/" + selected_year + "/rent_burden_mastergeometry_" + selected_year + "_" + place_string + ".json";
         
         var locations_array = my_array.map(({GEO_ID}) => GEO_ID);
         var customdata_array = my_array.map(({NAME}) => NAME);
