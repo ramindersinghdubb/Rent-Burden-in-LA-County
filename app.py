@@ -346,6 +346,15 @@ app.layout = dbc.Container([
                           color = 'primary')
            ])   
         ]
+                ),
+        dbc.Row([
+           dbc.Col([
+               dbc.Alert(children=['Of the estimated ', html.B(id='ndv1'), ' renters residing in ', html.B(id='ndv2'), ' during ',
+                                    html.B(id='ndv3'), ', approximately ', html.B(id='ndv4'), ' of all renters were considered ',
+                                    html.B('severely rent-burdened'), '.'],
+                          color = 'danger')
+           ])   
+        ]
                 )
     ], style = {
                 'padding': '20px 0px 0px 0px',
@@ -764,7 +773,9 @@ app.clientside_callback(
 
 
 
-# ------------ Alert ------------ #
+# ------------ Alerts ------------ #
+
+# Rent-burdened alert
 app.clientside_callback(
     """
     function(selected_place, selected_year, alert_masterfile) {
@@ -793,6 +804,32 @@ app.clientside_callback(
      Output('dv4', 'children'), Output('dv5', 'children'), Output('dv6', 'children'),
      Output('dv7', 'children'), Output('dv8', 'children'), Output('dv9', 'children'),
      Output('dv10', 'children'), Output('dv11', 'children'), Output('dv12', 'children')
+    ],
+    [Input('place-dropdown', 'value'),
+     Input('year-dropdown', 'value'),
+     Input('alert_masterfile_data', 'data')
+    ]
+)
+
+# Severely rent-burdened alert
+app.clientside_callback(
+    """
+    function(selected_place, selected_year, alert_masterfile) {
+        var selected_place = `${selected_place}`;
+        var selected_year = Number(selected_year);
+        var my_array = alert_masterfile.filter(item => item['PLACE'] === selected_place && item['YEAR'] === selected_year);
+
+        var ndv1 = `${my_array['0']['TotalPop']}`;
+        var ndv2 = selected_place;
+        var ndv3 = selected_year;
+        var ndv4 = `${my_array['0']['OverallSRB']}` + '%';
+        
+
+        return [ndv1, ndv2, ndv3, ndv4]
+    }
+    """,
+    [Output('ndv1', 'children'), Output('ndv2', 'children'), Output('ndv3', 'children'),
+     Output('ndv4', 'children')
     ],
     [Input('place-dropdown', 'value'),
      Input('year-dropdown', 'value'),
