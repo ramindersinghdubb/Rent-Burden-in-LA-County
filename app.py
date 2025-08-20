@@ -23,9 +23,19 @@ assets_path = "assets/"
 
 data_path = "masterfiles/"
 
-# -- Masterfile -- #
+# -- Masterfiles -- #
 masterfile = pd.DataFrame()
+alert_masterfile = pd.DataFrame()
 years = range(2010, 2024)
+
+columns = ['PLACE', 'YEAR',
+           'B25070_007E', 'B25070_008E', 'B25070_009E', 'B25070_010E', 'B25070_001E', # overall rent burden percentage
+           'B25072_006E', 'B25072_007E', 'B25072_002E', # 15 to 24 rent burden percentage
+           'B25072_013E', 'B25072_014E', 'B25072_009E', # 25 to 34 rent burden percentage
+           'B25072_020E', 'B25072_021E', 'B25072_016E', # 35 to 64 rent burden percentage
+           'B25072_027E', 'B25072_028E', 'B25072_023E', # 65 and older rent burden percentage
+           #'B25070_010E', 'B25070_001E' # overall severe rent burden percentage
+          ]
 
 for year in years:
     file_path = f'{data_path}rent_burden_masterfile_{year}.csv'
@@ -33,6 +43,23 @@ for year in years:
     map_path = f'{assets_path}rent_burden_mastergeometry_{year}.json'
     gdf = gpd.read_file(map_path)
     df = pd.merge(df, gdf[['PLACE', 'NAME', 'GEO_ID','INTPTLAT','INTPTLON']], on=['PLACE', 'NAME', 'GEO_ID'], how='left')
+
+    # For the alert text
+    alert_df = df[columns]
+    alert_df = alert_df.groupby(['PLACE', 'YEAR'], as_index=False).sum()
+    alert_df['TotalPop'] = alert_df['B25070_001E']
+    alert_df['OverallRB'] = round( ( ( alert_df['B25070_007E'] + alert_df['B25070_008E'] + alert_df['B25070_009E'] + alert_df['B25070_010E']) / alert_df['TotalPop']) * 100, 2 )
+    alert_df['15to24Pop'] = alert_df['B25072_002E']
+    alert_df['15to24RB'] = round( ( ( alert_df['B25072_006E'] + alert_df['B25072_007E']) / alert_df['15to24Pop']) * 100, 2 )
+    alert_df['25to34Pop'] = alert_df['B25072_009E']
+    alert_df['25to34RB'] = round( ( ( alert_df['B25072_013E'] + alert_df['B25072_014E']) / alert_df['25to34Pop']) * 100, 2 )
+    alert_df['35to64Pop'] = alert_df['B25072_016E']
+    alert_df['35to64RB'] = round( ( ( alert_df['B25072_020E'] + alert_df['B25072_021E']) / alert_df['35to64Pop']) * 100, 2 )
+    alert_df['65olderPop'] = alert_df['B25072_023E']
+    alert_df['65olderRB'] = round( ( ( alert_df['B25072_027E'] + alert_df['B25072_028E']) / alert_df['65olderPop']) * 100, 2 )
+    alert_df['OverallSRB'] = round( ( alert_df['B25070_010E'] / alert_df['TotalPop']) * 100, 2)
+    alert_df = alert_df[['PLACE', 'YEAR', 'TotalPop', 'OverallRB', '15to24Pop', '15to24RB', '25to34Pop', '25to34RB', '35to64Pop', '35to64RB', '65olderPop', '65olderRB', 'OverallSRB']]
+    alert_masterfile = pd.concat([alert_masterfile, alert_df], ignore_index = True)
 
     # For the trace
     df['dummy'] = 1
@@ -325,6 +352,10 @@ app.layout = dbc.Container([
     # ------------ Data ------------ #
     dcc.Store(id='masterfile_data',
               data=masterfile.to_dict("records")
+             ),
+    ,
+    dcc.Store(id='alert_masterfile_data',
+              data=alert_masterfile.to_dict("records")
              ),
     dcc.Store(id='place_year_dict',
               data=place_year_dict
