@@ -353,7 +353,6 @@ app.layout = dbc.Container([
     dcc.Store(id='masterfile_data',
               data=masterfile.to_dict("records")
              ),
-    ,
     dcc.Store(id='alert_masterfile_data',
               data=alert_masterfile.to_dict("records")
              ),
