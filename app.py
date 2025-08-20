@@ -619,8 +619,106 @@ app.clientside_callback(
 )
 
 
-# Plot
 
+# Plot
+app.clientside_callback(
+    """
+    function(selected_metric, selected_place, selected_tract, masterfile_data){        
+        if (selected_tract != undefined) {
+            var selected_metric = `${selected_metric}`;
+            var selected_place = `${selected_place}`;
+            var selected_tract = `${selected_tract}`;
+            var my_array = masterfile_data.filter(item => item['PLACE'] === selected_place && item['NAME'] === selected_tract);
+
+            var customdata_array = my_array.map(({NAME}) => NAME);
+            
+            var x_array = my_array.map(({YEAR})=>YEAR);
+            var rb_y_array = my_array.map(({TotalRentBurden})=>TotalRentBurden);
+            var srb_y_array = my_array.map(({TotalSevereRentBurden})=>TotalSevereRentBurden);
+
+            var rb_strings = my_array.map(function(item) {
+                return "<b style='font-size:16px;'>" + item['YEAR'] + "</b><br>" + item['NAME'] + ", " + item['PLACE'] + " <br><br>"
+                + "Of the estimated " + item['B25070_001E'] + " renters, approx.<br><b style='font-size:16px; color:#800000;'>" + item['TotalRentBurden'] + "%</b> "
+                + "were considered <b style='font-size:16px; color:#800000;'>rent-burdened</b>. <br><br>"
+                + "<b style='font-size:14px;'>Proportion of Rent-Burdened <br>Individuals by Age</b><br>"
+                + "Of renters <b style='color:#B22222;'>15 to 24 year old</b>, approx.<br><b style='color:#B22222; font-size:14px;'>" + item['RentBurden_15to24_str'] + "</b> were rent-burdened.<br><br>"
+                + "Of renters <b style='color:#B22222;'>25 to 34 year old</b>, approx.<br><b style='color:#B22222; font-size:14px;'>" + item['RentBurden_25to34_str'] + "</b> were rent-burdened.<br><br>"
+                + "Of renters <b style='color:#B22222;'>35 to 64 year old</b>, approx.<br><b style='color:#B22222; font-size:14px;'>" + item['RentBurden_35to64_str'] + "</b> were rent-burdened.<br><br>"
+                + "Of renters <b style='color:#B22222;'>65 and older</b>, approx.<br><b style='color:#B22222; font-size:14px;'>" + item['RentBurden_65+_str'] + "</b> were rent-burdened.<extra></extra>";
+            });
+
+            var rb_data = [{
+                'type': 'scatter',
+                'x': x_array,
+                'y': rb_y_array,
+                'mode': 'lines+markers',
+                'line': {'color': '#800000'},
+                'marker': {'size': 10, 'line': {'width': 2, 'color': '#F5FBFF'}},
+                'text': rb_strings,
+                'hoverlabel': {'bgcolor': '#FAFAFA', 'bordercolor': '#BEBEBE', 'font': {'color': '#020403'}},
+                'hovertemplate': '%{text}'
+            }];
+        
+            var rb_layout = {
+                'font': {'color': '#020403'},
+                'hoverlabel': {'align': 'left'},
+                'margin': {'b': 40, 't': 40, 'r': 20},
+                'autosize': true,
+                'uirevision': true,
+                'paper_bgcolor': '#FEF9F3',
+                'plot_bgcolor': '#FEF9F3',
+                'title': {'text': `Percentage of Rent Burdened Individuals, ${Math.min(...x_array)} to ${Math.max(...x_array)}`, 'x': 0.05},
+                'xaxis': {'title': {'text': 'Year', 'ticklabelstandoff': 10}, 'showgrid': false, 'tickvals': x_array},
+                'yaxis': {'title': {'text': 'Percentage of Rent-Burdened Individuals (%)', 'standoff': 15}, 'ticksuffic': '%', 'gridcolor': '#E0E0E0', 'ticklabelstandoff': 5},
+            };
+
+            var srb_strings = my_array.map(function(item) {
+                return "<b style='font-size:16px;'>" + item['YEAR'] + "</b><br>" + item['NAME'] + ", " + item['PLACE'] + " <br><br>"
+                + "Of the estimated " + item['B25070_001E'] + " renters, approx. <b style='font-size:16px; color:#610000;'>" + item['TotalSevereRentBurden'] + "%</b><br>"
+                + "were considered <b style='font-size:16px; color:#610000;'>severely rent-burdened</b> <br>during <b style='font-size:14px'>" + item['YEAR'] + "</b>.<extra></extra>";
+            });
+
+            var srb_data = [{
+                'type': 'scatter',
+                'x': x_array,
+                'y': srb_y_array,
+                'mode': 'lines+markers',
+                'line': {'color': '#A865B5'},
+                'marker': {'size': 10, 'line': {'width': 2, 'color': '#F5FBFF'}},
+                'text': srb_strings,
+                'hoverlabel': {'bgcolor': '#FAFAFA', 'bordercolor': '#BEBEBE', 'font': {'color': '#020403'}},
+                'hovertemplate': '%{text}'
+            }];
+        
+            var srb_layout = {
+                'font': {'color': '#020403'},
+                'hoverlabel': {'align': 'left'},
+                'margin': {'b': 40, 't': 40, 'r': 20},
+                'autosize': true,
+                'uirevision': true,
+                'paper_bgcolor': '#FEF9F3',
+                'plot_bgcolor': '#FEF9F3',
+                'title': {'text': `Percentage of Severely Rent Burdened Individuals, ${Math.min(...x_array)} to ${Math.max(...x_array)}`, 'x': 0.05},
+                'xaxis': {'title': {'text': 'Year', 'ticklabelstandoff': 10}, 'showgrid': false, 'tickvals': x_array},
+                'yaxis': {'title': {'text': 'Percentage of Severely Rent-Burdened Individuals (%)', 'standoff': 15}, 'ticksuffic': '%', 'gridcolor': '#E0E0E0', 'ticklabelstandoff': 5},
+            };
+            
+            if (selected_metric == 'Rent Burden') {
+                return {'data': rb_data, 'layout': rb_layout};
+            }
+            else {
+                return {'data': srb_data, 'layout': srb_layout};
+            }
+        }
+    }
+    """,
+    Output('rent_plot', 'figure'),
+    [Input('radio-options', 'value'),
+     Input('place-dropdown', 'value'),
+     Input('census-tract-dropdown', 'value'),
+     Input('masterfile_data', 'data')
+    ]
+)
 
 
 
