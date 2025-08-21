@@ -528,6 +528,11 @@ app.clientside_callback(
     function(selected_metric, selected_place, selected_year, selected_tract, masterfile_data){
         var selected_metric = `${selected_metric}`;
         var selected_place = `${selected_place}`;
+        if ( selected_place.includes("Flintridge") ) {
+           let selected_place = 'La Ca\u00F1ada Flintridge';
+           selected_place = selected_place.normalize('NFD');
+           return selected_place;
+        }
         var selected_year = Number(selected_year);
         var my_array = masterfile_data.filter(item => item['PLACE'] === selected_place && item['YEAR'] === selected_year);
         
