@@ -529,8 +529,7 @@ app.clientside_callback(
         var selected_metric = `${selected_metric}`;
         var selected_place = `${selected_place}`;
         if ( selected_place.includes("Flintridge") ) {
-           let selected_place = 'La Ca\u00F1ada Flintridge';
-           selected_place = selected_place.normalize('NFD');
+           let selected_place = 'La Cañada Flintridge';
            return selected_place;
         }
         var selected_year = Number(selected_year);
