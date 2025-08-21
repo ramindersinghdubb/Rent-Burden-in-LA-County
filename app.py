@@ -529,7 +529,7 @@ app.clientside_callback(
         var selected_metric = `${selected_metric}`;
         var selected_place = `${selected_place}`;
         if ( selected_place.includes("Flintridge") ) {
-           var selected_place = 'La Ca\xF1ada Flintridge';
+           var selected_place = 'La Ca' + \xF1 + 'ada Flintridge';
            return selected_place;
         }
         var selected_year = Number(selected_year);
