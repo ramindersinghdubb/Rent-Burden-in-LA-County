@@ -724,7 +724,7 @@ app.clientside_callback(
                 'plot_bgcolor': '#FEF9F3',
                 'title': {'text': `Percentage of Rent Burdened Individuals, ${Math.min(...x_array)} to ${Math.max(...x_array)}`, 'x': 0.05},
                 'xaxis': {'title': {'text': 'Year', 'ticklabelstandoff': 10}, 'showgrid': false, 'tickvals': x_array},
-                'yaxis': {'title': {'text': 'Percentage of Rent-Burdened Individuals (%)', 'standoff': 15}, 'ticksuffic': '%', 'gridcolor': '#E0E0E0', 'ticklabelstandoff': 5},
+                'yaxis': {'title': {'text': 'Percentage of Rent-Burdened Individuals (%)', 'standoff': 15}, 'ticksuffix': '%', 'gridcolor': '#E0E0E0', 'ticklabelstandoff': 5},
             };
 
             var srb_strings = my_array.map(function(item) {
@@ -755,7 +755,7 @@ app.clientside_callback(
                 'plot_bgcolor': '#FEF9F3',
                 'title': {'text': `Percentage of Severely Rent Burdened Individuals, ${Math.min(...x_array)} to ${Math.max(...x_array)}`, 'x': 0.05},
                 'xaxis': {'title': {'text': 'Year', 'ticklabelstandoff': 10}, 'showgrid': false, 'tickvals': x_array},
-                'yaxis': {'title': {'text': 'Percentage of Severely Rent-Burdened Individuals (%)', 'standoff': 15}, 'ticksuffic': '%', 'gridcolor': '#E0E0E0', 'ticklabelstandoff': 5},
+                'yaxis': {'title': {'text': 'Percentage of Severely Rent-Burdened Individuals (%)', 'standoff': 15}, 'ticksuffix': '%', 'gridcolor': '#E0E0E0', 'ticklabelstandoff': 5},
             };
             
             if (selected_metric == 'Rent Burden') {
