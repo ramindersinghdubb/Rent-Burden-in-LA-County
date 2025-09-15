@@ -651,7 +651,7 @@ app.clientside_callback(
                         'geojson': url_path,
                         'locations': aux_srb_locations_array,
                         'featureidkey': 'properties.GEO_ID',
-                        'colorscale': `[[0, 'rgba(0,0,0,0)'], [1, 'rgba(0,0,0,0)']]`,
+                        'colorscale': [[0, 'rgba(0,0,0,0)'], [1, 'rgba(0,0,0,0)']],
                         'showscale': false,
                         'z': aux_srb_z_array,
                         'zmin': 0, 'zmax': 1,
