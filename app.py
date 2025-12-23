@@ -81,7 +81,7 @@ app.layout = dbc.Container([
                         )
         ], style = {'display': 'inline-block',
                     'margin': '0 0',
-                    'padding': '0px 15px 0px 0px',
+                    'padding': '30px 15px 0px 0px',
                     'width': '22.5%'
                    }
                 ),
@@ -481,7 +481,7 @@ app.clientside_callback(
                     + "Of renters <b style='color:#B22222;'>65 and older</b>, approx.<br><b style='color:#B22222; font-size:14px;'>" + item['RentBurden_65+_str'] + "</b> were rent-burdened.<extra></extra>";
                 });
                 var plot_title = `Percentage of Rent Burdened Individuals, ${Math.min(...x_array)} to ${Math.max(...x_array)}`;
-                var yaxis_lab = ''Percentage of Rent-Burdened Individuals (%)';
+                var yaxis_lab = 'Percentage of Rent-Burdened Individuals (%)';
                 var line_color = '#800000';
             } else {
                 var y_array = my_array.map( ({TotalSevereRentBurden}) => TotalSevereRentBurden );
