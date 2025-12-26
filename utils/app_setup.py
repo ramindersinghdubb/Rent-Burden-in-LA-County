@@ -60,13 +60,10 @@ For the purposes of this website . . . <ul>
 <li> <b style='color:#800000;'>Severely rent-burdened individuals</b> are individuals for whom <u style='color:#800000;'><b style='color:#800000;'>over 50% of their income</b></u> goes to paying rent </li>
 </ul>
 
-Use the dropdowns to choose a city of interest and a year of interest. You can also choose whether you wish to see the percentage of rent-burdened renters
-or the percentage of severely rent-burdened renters by clicking on the options. <br>
-
-Hover over the map to view a detailed breakdown of rent-burdened individuals by age. <br>
+Use the dropdowns to choose a city of interest and a year of interest.
 
 Click on a census tract to visualize how the percentage of either rent-burdened or severely rent-burdened individuals has evolved over time in the plot.
-You can also hover over points in the plot to view additional information on the age demographics of rent-burdened individuals.
+You can also view information on the age demographics of rent-burdened individuals for the chosen census tract.
 
 <hr style="height:2px; border-width:0; color:#212122; background-color:#212122">
 
