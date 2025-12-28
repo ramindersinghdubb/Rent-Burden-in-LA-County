@@ -397,7 +397,7 @@ app.clientside_callback(
         if (selected_tract != undefined){
             var aux_array           = my_array.filter(item => item['TRACT'] === selected_tract);
             var aux_locations_array = aux_array.map( ({GEO_ID}) => GEO_ID );
-            var aux_z_array         = aux_array.map( ({dummy}) => dummy );
+            var aux_z_array         = aux_array.map( ({GEO_ID}) => GEO_ID );
         
             var aux_data = {
                 'type': 'choroplethmap',
@@ -409,6 +409,7 @@ app.clientside_callback(
                 'z': aux_z_array,
                 'zmin': 0, 'zmax': 1,
                 'marker': {'line': {'color': '#04D9FF', 'width': 4}},
+                'selected': {'marker': {'opacity': 0.4}},
                 'hoverinfo': 'skip',
             }
             
